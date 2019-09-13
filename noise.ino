@@ -1,48 +1,31 @@
-// **************
-// Include for WLAN
-// **************
-
+// Die nötigen Erweiterungen werden geladen.
 #include <ESP8266WiFi.h>
-
-// Config the Wifi Access.
-const char* ssid     = "XXXXX";
-const char* password = "XXXXX";
-
-// Config the URL.
-const char* host = "XXXXX";
-const char* streamId   = "noiselog.php";
-
-const char* sensor = "nameofthesensor";
-
-// **************
-// Include for the Sensor
-// **************
-
 #include <Arduino.h>
 #include <Wire.h>
 
-// **************
-// Definition for noise level monitoring
-// **************
+// Der Internetzugang wird konfiguriert.
+const char* ssid     = "XXXXX";
+const char* password = "XXXXX";
 
-const int sampleWindow = 1000; // Sample window width in mS (50 mS = 20Hz)
+// Falls die Daten auf den Server übermittelt werden: Hier wird die Internetadresse des Servers eingetragen,
+// auf dem das Empfangsskript läuft (siehe PHP-Datei).
+const char* host = "XXXXX";
+const char* streamId   = "noiselog.php";
+
+// Definieren eines Namens für den Soundsensor. 
+const char* sensor = "nameofthesensor";
+
+// Voreinstellungen für die Tonaufzeichnung. 
+const int sampleWindow = 1000; // Die Breite des Samplefensters in Millisekunden wird definiert (50 mS = 20Hz).
 unsigned int sample;
 
 void setup() {
-
-// **************
-// Setup for WLAN
-// **************
-
   Serial.begin(57600);
   delay(10);
 
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
+  // Eine Verbindung zum WLAN-Zugangsknoten wird aufgebaut. 
+  Serial.print("Verbindung aufbauen mit ");
   Serial.println(ssid);
-
   
   WiFi.begin(ssid, password);
   
@@ -51,38 +34,34 @@ void setup() {
     Serial.print(".");
   }
 
-  Serial.println("");
   Serial.println("WiFi connected");  
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 
-int value = 0;
+  int value = 0;
 }
+
 void loop() {
 
-// **************
-// Mesure the noise level
-// **************
+// Der Schallpegel wird gemessen. 
 
-   unsigned long startMillis= millis();  // Start of sample window
-   unsigned int peakToPeak = 0;   // peak-to-peak level
-
+   unsigned long startMillis = millis();
+   unsigned int peakToPeak = 0;
    unsigned int signalMax = 0;
    unsigned int signalMin = 1024;
 
-   // collect data
    while (millis() - startMillis < sampleWindow)
    {
       sample = analogRead(0);
-      if (sample < 1024)  // toss out spurious readings
+      if (sample < 1024)
       {
          if (sample > signalMax)
          {
-            signalMax = sample;  // save just the max levels
+            signalMax = sample; 
          }
          else if (sample < signalMin)
          {
-            signalMin = sample;  // save just the min levels
+            signalMin = sample; 
          }
       }
    }
@@ -92,18 +71,13 @@ void loop() {
    float noise = (100 * volts);
    Serial.println(100 * volts);
 
-
-
   delay(15000);
 
-// **************
-// Send the data over the Wifi to the server
-// **************
+// Der Messwert wird via das WLAN an den Server geschickt.
 
   Serial.print("connecting to ");
   Serial.println(host);
   
-  // Use WiFiClient class to create TCP connections
   WiFiClient client;
   const int httpPort = 80;
   if (!client.connect(host, httpPort)) {
@@ -111,7 +85,7 @@ void loop() {
     return;
   }
 
-  // We now create a URI for the request
+  // Die Adresse für den Postrequest wird kreiert.
   String url = "/noiselog/";
   url += streamId;
   url += "?";
@@ -120,10 +94,10 @@ void loop() {
   url += "&noise=";
   url += noise;
 
-  Serial.print("Requesting URL: ");
+  Serial.print("URL: ");
   Serial.println(url);
   
-  // This will send the request to the server
+  // Die Daten werden geschickt. 
   client.print(String("GET ") + url + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n" + 
                "Connection: close\r\n\r\n");
@@ -136,13 +110,13 @@ void loop() {
     }
   }
   
-  // Read all the lines of the reply from server and print them to Serial
+  // Die Rückmeldung des Servers wird empfangen und ausgegeben. 
   while(client.available()){
     String line = client.readStringUntil('\r');
     Serial.print(line);
   }
   
   Serial.println();
-  Serial.println("closing connection");
+  Serial.println("Verbindung wird getrennt.");
 
 }
